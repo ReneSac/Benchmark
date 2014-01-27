@@ -1,0 +1,8 @@
+*.o
+*.exe
+*.so
+*.zip
+*.iss
+nimcache
+benchmark
+
