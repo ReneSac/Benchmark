@@ -1,0 +1,12 @@
+[Package]
+name          = "benchmark"
+version       = "0.1.0"
+author        = "René du R. Sacramento"
+description   = "Provides tools for easily benchmarking code in Nimrod."
+license       = "MIT"
+
+bin = "benchmark"
+srcDir = ""
+
+[Deps]
+Requires: "nimrod >= 0.9.3"
