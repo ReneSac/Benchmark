@@ -5,8 +5,8 @@ import times
 
 type
   TStopWatch = object
-    start_time, total_time: float64
-    laps: seq[float64]
+    start_time, total_time: float
+    laps: seq[float]
     running: bool
     
     
@@ -16,40 +16,42 @@ type
 # And we already lost our micro-second time precision after 9 seconds of 
 # execution.
 
-proc StopWatchInit*(auto_start:bool = false, estimated_laps:int = 0): TStopWatch = 
+proc StopWatchInit*(auto_start:bool = false): TStopWatch = 
   ## Returns a new stop watch object. It can also start automatically to count time.
   result = TStopWatch(start_time: 0.0, total_time: 0.0, 
-                      laps: newSeq[float64](estimated_laps), running: auto_start)
+                      laps: newSeq[float](), running: auto_start)
   if auto_start:
     result.start_time = cpuTime()
 
 
 proc start*(sw: var TStopWatch) {.inline} =
-  ## Starts the stop watch. 
+  ## Starts the stop watch. Can't be called when it is already running.
   assert(not sw.running)
   sw.start_time = cpuTime()
   sw.running = true
   
   
-proc pause*(sw: var TStopWatch): float64 {.discardable, inline.} =
-  ## Pauses the stop watch.
+proc pause*(sw: var TStopWatch): float {.discardable, inline.} =
+  ## Pauses the stop watch. Can't be called if it is already stopped.
+  assert(sw.running)
   sw.total_time += cpuTime() - sw.start_time
   sw.running = false
   return sw.total_time
 
 
-proc reset*(sw: var TStopWatch): float64 {.discardable, inline.} =
+proc reset*(sw: var TStopWatch): float {.discardable, inline.} =
   ## Resets the stop watch to the initial state, but keeps it running or paused.
   sw.start_time = if sw.running: cpuTime() else: 0
   result = sw.total_time
+  sw.laps = newSeq[float]()
   sw.total_time = 0
   
   
-proc peek*(sw: TStopWatch): float64 {.inline.} =
+proc peek*(sw: TStopWatch): float {.inline.} =
   ## Peeks at the amount of time that has passed since the stop watch was 
   ## first started, excluding the periods where it was paused. 
   ##
-  ## It can be safely called even when the stop watch is paused.
+  ## It can be safely called even when the stop watch is paused or running.
   if sw.running:
     return sw.total_time + cpuTime() - sw.start_time
   else:
@@ -57,7 +59,7 @@ proc peek*(sw: TStopWatch): float64 {.inline.} =
     
     
 proc lap*(sw: var TStopWatch, pause: bool = false,
-          store: bool = false): float64 {.discardable, inline.} =
+          store: bool = false): float {.discardable, inline.} =
   ## Gives the time since start() or lap() was last called (or since last 
   ## reset(), if it was called while the stop watch was running). It don't affects
   ## the accumulated time.
@@ -68,14 +70,14 @@ proc lap*(sw: var TStopWatch, pause: bool = false,
   result = cur - sw.start_time
   sw.start_time = cur
   sw.total_time += result
-  if store:
+  if store:            # Those 'if's will probably be optimized out when inlined.
     sw.laps.add(result)
-    sw.start_time = cpuTime() # Don't count any time spent appending to the seq.
+    sw.start_time = cpuTime()  # Don't count any time spent appending to the seq.
   if pause:
     sw.running = false
     
     
-proc getLaps*(sw: TStopWatch): seq[float64] {.inline, noSideEffect.} =
+proc getLaps*(sw: TStopWatch): seq[float] {.inline, noSideEffect.} =
   ## Returns a sequence with all the laps finished till now.
   return sw.laps
     
@@ -88,14 +90,16 @@ proc isRunning*(sw: TStopWatch): bool {.inline, noSideEffect.} =
 when isMainModule:
   import math
   
-  proc bar(): float64 = 
+  proc bar(): float = 
     var sw = StopWatchInit(auto_start = true)
     assert sw.isRunning() == true
-    sw.lap(pause=true)
+    sw.lap(pause=true, store=true)
     assert sw.isRunning() == false
+    assert sw.getLaps().len == 1
     
     sw.reset()
     assert sw.peek() == 0.0
+    assert sw.getLaps().len == 0
     
     sw.start()
     assert sw.isRunning() == true
@@ -108,12 +112,11 @@ when isMainModule:
     assert sw.isRunning() == false
     let peek = sw.peek()
     #assert peek > 0.0  # 
-        
     return sw.peek()
     
     
   var sw = StopWatchInit()
-  var sum_time: float64 = 0.0
+  var sum_time: float = 0.0
   let repeats = 100_000
   
   sw.start()
@@ -130,6 +133,6 @@ when isMainModule:
   assert total_time >= sum_laps
   
   echo("Inner partial time sum: ", sum_time)
-  echo("Laps total time: ", sum_laps, "Laps per second: ", 60/laps.mean())
+  echo("Laps total time: ", sum_laps, "  Laps per second: ", 60/laps.mean())
   echo("Total time: ", total_time)
   
