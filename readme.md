@@ -4,7 +4,7 @@ Nimrod module to help with benchmarks while adding as low overhead as possible.
 
 Example:
 
-```
+```nimrod
 var sw = StopWatchInit()
 let repeats = 100_000
 
