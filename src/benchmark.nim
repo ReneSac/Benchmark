@@ -1,38 +1,36 @@
 # Copyright (C) 2014, René du R. Sacramento. All rights reserved.
 # MIT License. Look at license.txt for more info.
 
-import times, math, strutils
+import resources, math, strutils
 
 type
-  TStopWatch = ref object
+  StopWatch = ref object
     start_time, total_time: float
     laps*: seq[float]
     running*: bool
     
-let s = TStopWatch()
-
 
 # If the program was started more than 3 hours ago in a system where float 
 # defaults to float32 we don't even have mili-seconds time precision anymore. 
 # And we already lost our micro-second time precision after 9 seconds of 
 # execution.
 
-proc StopWatchInit*(auto_start:bool = false): TStopWatch = 
+proc StopWatchInit*(auto_start:bool = false): StopWatch =
   ## Returns a new stop watch object. It can also start automatically to count time.
-  result = TStopWatch(start_time: 0.0, total_time: 0.0, 
+  result = StopWatch(start_time: 0.0, total_time: 0.0,
                       laps: newSeq[float](), running: auto_start)
   if auto_start:
     result.start_time = cpuTime()
 
 
-proc start*(sw: var TStopWatch) {.inline.} =
+proc start*(sw: var StopWatch) {.inline.} =
   ## Starts the stop watch. Can't be called when it is already running.
   assert(not sw.running)
   sw.start_time = cpuTime()
   sw.running = true
   
   
-proc pause*(sw: var TStopWatch): float {.discardable, inline.} =
+proc pause*(sw: var StopWatch): float {.discardable, inline.} =
   ## Pauses the stop watch. Can't be called if it is already stopped.
   assert(sw.running)
   sw.total_time += cpuTime() - sw.start_time
@@ -40,7 +38,7 @@ proc pause*(sw: var TStopWatch): float {.discardable, inline.} =
   return sw.total_time
 
 
-proc reset*(sw: var TStopWatch): float {.discardable, inline.} =
+proc reset*(sw: var StopWatch): float {.discardable, inline.} =
   ## Resets the stop watch to the initial state, but keeps it running or paused.
   sw.start_time = if sw.running: cpuTime() else: 0
   result = sw.total_time
@@ -48,7 +46,7 @@ proc reset*(sw: var TStopWatch): float {.discardable, inline.} =
   sw.total_time = 0
   
   
-proc peek*(sw: TStopWatch): float {.inline.} =
+proc peek*(sw: StopWatch): float {.inline.} =
   ## Peeks at the amount of time that has passed since the stop watch was 
   ## first started, excluding the periods where it was paused. 
   ##
@@ -59,7 +57,7 @@ proc peek*(sw: TStopWatch): float {.inline.} =
     return sw.total_time
     
     
-proc lap*(sw: var TStopWatch, pause: bool = false,
+proc lap*(sw: var StopWatch, pause: bool = false,
           store: bool = false): float {.discardable, inline.} =
   ## Gives the time since start() or lap() was last called (or since last 
   ## reset(), if it was called while the stop watch was running). It don't affects
@@ -78,12 +76,12 @@ proc lap*(sw: var TStopWatch, pause: bool = false,
     sw.running = false
     
     
-proc getLaps*(sw: TStopWatch): seq[float] {.inline, noSideEffect.} =
+proc getLaps*(sw: StopWatch): seq[float] {.inline, noSideEffect.} =
   ## Returns a sequence with all the laps finished till now.
   return sw.laps
     
   
-proc isRunning*(sw: TStopWatch): bool {.inline, noSideEffect.} =
+proc isRunning*(sw: StopWatch): bool {.inline, noSideEffect.} =
   ## Says wether the stop watch is running or not.
   return sw.running
 
@@ -96,16 +94,15 @@ type TimeitResult* = tuple
 
 proc `$`*(r: TimeitResult): string =
   result = $r.loops & " loops, best of " & $r.repeats & ": "
-  var t = r.best * 1_000_000 / r.loops.float  # time in micro seconds.
-  
-  if t < 1000:
-    result &= formatFloat(t, precision=3) & " usec per loop"
-  else:
-    t = t / 1000
-    if t < 1000:
-      result &= formatFloat(t, precision=3) & " msec per loop"
-    else:
-      result &= formatFloat(t/1000, precision=3) & " sec per loop"
+  #var t = r.best * 1_000_000_000_000 / r.loops.float #pico seconds
+  var t = r.best / r.loops.float
+  const unit = ["s", "ms", "us", "ns", "ps"]
+  var count = 0
+  while t < 1 and count < unit.len:
+    t *= 1000
+    count += 1
+  result &= formatFloat(t, precision=3) & " " & unit[count] & " per loop"
+
   
 template timeit*(loop: int = 0, repeat: int = 3, code: stmt): TimeitResult = 
   var res: TimeitResult# = (loops: loop, repeats: repeat)

@@ -1,12 +1,12 @@
 [Package]
 name          = "benchmark"
-version       = "0.1.0"
+version       = "0.2.0"
 author        = "René du R. Sacramento"
 description   = "Provides tools for easily benchmarking code in Nimrod."
 license       = "MIT"
 
 bin = "benchmark"
-srcDir = ""
+srcDir = "src/"
 
 [Deps]
-Requires: "nimrod >= 0.9.3"
+Requires: "nim >= 0.10.2"
