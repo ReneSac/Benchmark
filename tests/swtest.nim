@@ -1,4 +1,4 @@
-import "../benchmark"
+import "../src/benchmark"
 import math
 import os
 import times
