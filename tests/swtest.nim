@@ -58,8 +58,8 @@ proc swtest() =
 proc main() =
   swtest()
 
-  echo timeit(100_000, 3) do:
-    discard bar()
+  #echo timeit(100_000, 3) do:
+  #  discard bar()
 
 
 when isMainModule:

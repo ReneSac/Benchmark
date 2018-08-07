@@ -109,6 +109,10 @@ proc toNanos(t: Timeval): Nanos =
 proc toSeconds(t: Timeval): Seconds =
   return Seconds(Seconds(t.tv_sec) + Seconds(t.tv_usec) / 1_000_000.Seconds)
 
+proc `+`(a, b: Timeval): Timeval =
+  result.tv_sec = a.tv_sec + b.tv_sec
+  result.tv_usec = a.tv_usec + b.tv_usec
+
 proc getExecStats*(target: int32): ExecStats =
   when defined(windows):
     PROCESS_MEMORY_COUNTERS info;
@@ -124,11 +128,31 @@ proc getExecStats*(target: int32): ExecStats =
       result.maxMem = info.ru_maxrss * 1000
       result.curMem = 0 # must read on procfs for linux
 
+  # This is unnecessary... I will get rid of it
   result.gcTotalMem = getTotalMem()
   result.gcOccupiedMem = getOccupiedMem()
 
-proc cpuTime*(): float =
-  var info = getExecStats(RUSAGE_SELF)
-  result = info.userTime + info.sysTime
+proc cpuTime*() {.inline.}: float =
+  # About 5% slower than the times.cpuTime() function on linux, that calls
+  # clock(), but on the other hand don't wraps around every 72 minutes like
+  # clock() does.
+  when false:
+    var info = getExecStats(RUSAGE_SELF)
+    result = info.userTime + info.sysTime
+  else:
+    var info: RUsage
+    discard posix_getrusage(RUSAGE_SELF, info)
+    result = toSeconds(info.ru_utime + info.ru_stime)
+
+import benchmark
+from times import nil
 
 echo repr(getExecStats(RUSAGE_SELF))
+
+var a:float = 0
+echo timeit(0,5, a += times.cpuTime())
+echo a
+echo times.cpuTime()
+echo cpuTime()
+echo times.cpuTime()
+echo cpuTime()

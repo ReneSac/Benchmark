@@ -10,9 +10,12 @@
 ## Timer support for the realtime GC. Based on
 ## `<https://github.com/jckarter/clay/blob/master/compiler/src/hirestimer.cpp>`_
 
+
+import rationals
+
 type
-  Ticks = distinct int64
-  Nanos = int64 ## Nanoseconds
+  Ticks* = distinct int64
+  Nanos* = int64 ## Nanoseconds
 
 
 # Plataform specific functions and data types for high resolution clock that are
@@ -38,7 +41,7 @@ elif defined(macosx):
   var timeBaseInfo: TMachTimebaseInfoData
   mach_timebase_info(timeBaseInfo)
 
-elif defined(posixRealtime):
+else: #elif defined(posixRealtime):
   type
     TClockid {.importc: "clockid_t", header: "<time.h>", final.} = object
 
@@ -53,7 +56,7 @@ elif defined(posixRealtime):
   proc clock_gettime(clkId: TClockid, tp: var TTimespec) {.
     importc: "clock_gettime", header: "<time.h>".}
 
-else:
+when false:
   # fallback Posix implementation:
   type
     Ttimeval {.importc: "struct timeval", header: "<sys/select.h>",
@@ -82,15 +85,15 @@ proc getTicks*(): Ticks {.inline.} =
   elif defined(macosx):
     result = Ticks(mach_absolute_time())
 
-  elif defined(posixRealtime):
+  else: #elif defined(posixRealtime):
     var t: TTimespec
     clock_gettime(CLOCK_REALTIME, t)
-    result = Ticks(int64(t.tv_sec) * 1000000000'i64 + int64(t.tv_nsec))
+    result = Ticks(int64(t.tv_sec) * 1_000_000_000'i64 + int64(t.tv_nsec))
 
-  else:
+  when false:
     var t: Ttimeval
     posix_gettimeofday(t)
-    result = Ticks(int64(t.tv_sec) * 1000_000_000'i64 +
+    result = Ticks(int64(t.tv_sec) * 1_000_000_000'i64 +
                     int64(t.tv_usec) * 1000'i64)
 
 proc `-`*(a, b: Ticks): Nanos =
@@ -108,6 +111,17 @@ proc `-`*(a, b: Ticks): Nanos =
 
   else: # for posixRealtime and other Posix
     result = (a.int64 - b.int64)
+
+
+## Information about each native time functions
+
+type
+  ClockInfo = ref object
+    adjustable, monotonic: bool
+    implementation: string
+
+    resolution: Rational
+
 
 
 # Direct hardware instruction access
